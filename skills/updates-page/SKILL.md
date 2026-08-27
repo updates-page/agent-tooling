@@ -33,12 +33,18 @@ If that succeeds it prints the signed-in account and you can proceed. If it
 exits non-zero, sign in:
 
 ```bash
-updates login
+updates login --device
 ```
 
-`login` opens a browser. On a machine without one — SSH, a container, CI — it
-detects that and prints a short code to enter from another device instead, so
-it works headless without any extra flag.
+`--device` prints a short code and a URL for the user to approve on any other
+device, then returns with a token. It is the right call from an agent session,
+and the only one that works everywhere.
+
+A bare `updates login` opens a browser **on the machine the command ran on**
+and waits for the redirect. It falls back to the device code only where it can
+tell there is no browser — over SSH, or on Linux with no display — so on macOS
+and Windows it always assumes there is one, and an agent waiting for a code to
+relay waits forever. `--device` removes the guess.
 
 For unattended runs, set `UPDATESPAGE_TOKEN` in the environment instead. Never
 pass a token as a command-line argument: it lands in the shell history and in
@@ -175,7 +181,7 @@ can fix from ones only the user can.
 | `0` | Success | — |
 | `2` | Usage: unknown flag, missing argument, bad value | You got the command wrong. Check `--help`; do not retry unchanged. |
 | `3` | Configuration problem | Run `updates doctor` — it shows each resolved value and its source. |
-| `4` | Not signed in, or the token was rejected | Run `updates login`. If the message names API access, it is an entitlement problem — tell the user, do not retry. |
+| `4` | Not signed in, or the token was rejected | Run `updates login --device`. If the message names API access, it is an entitlement problem — tell the user, do not retry. |
 | `5` | Network failure or server error | Transient. Retry once or twice with a pause. |
 | `6` | The thing you named does not exist | Do not create a replacement. Check the id with `updates list`. |
 | `7` | Exists, but is in the wrong state for this operation | E.g. publishing something already published. Read the current state first. |
