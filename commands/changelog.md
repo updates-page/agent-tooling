@@ -17,7 +17,7 @@ last_tag=$(git describe --tags --abbrev=0 2>/dev/null)
 if [ -n "$last_tag" ]; then
   git log --oneline "$last_tag"..HEAD
 else
-  git log --oneline -30
+  git log --oneline
 fi
 ```
 
@@ -27,6 +27,12 @@ nothing, so `"$(...)"..HEAD` collapses to `..HEAD`, which git reads as
 `HEAD..HEAD`. That is an empty range and a **zero exit code**: the log looks
 like it ran and found no commits. Concluding "nothing shipped" there is wrong
 and silent.
+
+The fallback reads **all** of `HEAD`, with no `-n` cap. With no tag every
+commit is by definition "since the last tag", so a cap would drop the earliest
+work with nothing to show that it had. If the history is genuinely too long to
+read, say so and ask for a range — do not summarise the tail you happened to
+get.
 
 Then follow the `updates-page` skill, which is the authority on the CLI, the
 draft-first rule and the content format. In short:
