@@ -18,6 +18,11 @@ if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
   git fetch --unshallow --tags 2>/dev/null || git fetch --deepen=200 --tags
 fi
 
+# Check again: --deepen can succeed and still leave the tag out of reach.
+if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+  echo "HISTORY INCOMPLETE — still a shallow clone after deepening" >&2
+fi
+
 last_tag=$(git describe --tags --abbrev=0 2>/dev/null)
 if [ -n "$last_tag" ]; then
   git log --oneline "$last_tag"..HEAD
@@ -43,8 +48,11 @@ The shallow check comes first because a partial clone fails the same way while
 looking healthy. `actions/checkout` fetches depth-1 without tags by default, so
 in CI `git describe` finds no tag *and* `git log` shows a single commit — a
 complete-looking answer to the wrong question. If the repository is still
-shallow after that fetch (no network, or a runner that refuses it), say the
-history is incomplete rather than writing an entry from the fragment.
+shallow after that fetch, say the history is incomplete rather than writing an
+entry from the fragment — that is what the second check prints. `--deepen=200`
+is a fallback for servers that refuse `--unshallow`, and it can succeed while
+the tag you needed still sits beyond the boundary, so the check has to run
+after both attempts rather than instead of them.
 
 Then follow the `updates-page` skill, which is the authority on the CLI, the
 draft-first rule and the content format. In short:
@@ -56,8 +64,15 @@ draft-first rule and the content format. In short:
    fail, it publishes literally onto a live public page.
 4. `updates draft --title … --content …` and show the user the post id and the
    body you wrote.
-5. Publish only if the user asked for it to go live now — `updates publish <id>`.
-   Publishing reaches the public page, the RSS feed and every embedded widget
-   at once, and there is no unsend.
+5. **Stop there.** Publishing is the user's call, not yours, and being asked
+   to "ship the changelog" does not settle it: you wrote this entry from a
+   diff, so nobody has read it yet. An instruction to publish is permission
+   for the user's words, not for words you inferred from code.
 
-Report back with the post id, the title, and the exact command to publish it.
+   Publish in this same turn only if the user is approving text they have
+   already seen — they asked you to re-run after a correction, or the entry is
+   their wording rather than yours. Publishing reaches the public page, the RSS
+   feed and every embedded widget at once, and there is no unsend.
+
+Report back with the post id, the title, the body you wrote, and the exact
+command to publish it — `updates publish <id>`.
