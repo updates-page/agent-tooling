@@ -1,0 +1,22 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "updates-page",
+  "version": "0.1.0",
+  "description": "Publish, update, schedule and list changelog entries on updates.page from your terminal or an agent session.",
+  "author": {
+    "name": "updates.page",
+    "email": "hey@updates.page",
+    "url": "https://updates.page"
+  },
+  "homepage": "https://docs.updates.page",
+  "repository": "https://github.com/updates-page/agent-tooling",
+  "license": "MIT",
+  "keywords": [
+    "changelog",
+    "release-notes",
+    "product-updates",
+    "publishing",
+    "ci",
+    "updates-page"
+  ]
+}

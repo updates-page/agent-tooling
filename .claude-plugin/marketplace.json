@@ -1,0 +1,36 @@
+{
+  "name": "updates-page",
+  "owner": {
+    "name": "updates.page",
+    "email": "hey@updates.page"
+  },
+  "metadata": {
+    "description": "Agent tooling for updates.page — publish your changelog from the thing that shipped the code.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "updates-page",
+      "source": "./",
+      "description": "Publish, update, schedule and list changelog entries on updates.page from your terminal or an agent session.",
+      "version": "0.1.0",
+      "author": {
+        "name": "updates.page",
+        "email": "hey@updates.page",
+        "url": "https://updates.page"
+      },
+      "homepage": "https://docs.updates.page",
+      "repository": "https://github.com/updates-page/agent-tooling",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": [
+        "changelog",
+        "release-notes",
+        "product-updates",
+        "publishing",
+        "ci",
+        "updates-page"
+      ]
+    }
+  ]
+}
