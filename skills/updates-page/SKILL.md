@@ -179,6 +179,7 @@ can fix from ones only the user can.
 | Code | Meaning | What to do |
 |---:|---|---|
 | `0` | Success | — |
+| `1` | Anything without a more specific code | Unclassified. Read the message; re-run with `--verbose` for a stack. |
 | `2` | Usage: unknown flag, missing argument, bad value | You got the command wrong. Check `--help`; do not retry unchanged. |
 | `3` | Configuration problem | Run `updates doctor` — it shows each resolved value and its source. |
 | `4` | Not signed in, or the token was rejected | Run `updates login --device`. If the message names API access, it is an entitlement problem — tell the user, do not retry. |

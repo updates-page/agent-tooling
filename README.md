@@ -59,8 +59,12 @@ the skill installs if it is missing:
 
 ```bash
 npm install -g @updatespage/cli
-updates login
+updates login --device
 ```
+
+`--device` prints a short code to approve in a browser on any device. A bare
+`updates login` opens a browser on the machine it ran on and waits, which hangs
+an agent session on macOS and Windows.
 
 An updates.page account. API access is included for the first 14 days of a new
 account and continues on the Pro plan, so an agent can publish a real post
@@ -81,9 +85,10 @@ plugin.json                    Agent Plugins 1.0 manifest (portable clients)
 .codex-plugin/plugin.json      Codex CLI's native manifest location
 ```
 
-Claude Code keeps its own plugin format and is not an Agent Plugins 1.0
-client, which is why there are two manifests rather than one. They describe
-the same plugin and point at the same `skills/`.
+Three manifests, because three clients read three different shapes: Claude Code
+keeps its own plugin format, Agent Plugins 1.0 is the portable standard read
+from the repo root, and Codex CLI has its own native manifest schema. All three
+describe the same plugin and point at the same `skills/`.
 
 ## Links
 

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "updates-page",
   "version": "0.1.0",
   "description": "Publish, update, schedule and list changelog entries on updates.page from your terminal or an agent session.",
@@ -18,5 +17,21 @@
     "publishing",
     "ci",
     "updates-page"
-  ]
+  ],
+  "interface": {
+    "displayName": "updates.page",
+    "shortDescription": "Publish your changelog from the terminal or an agent session.",
+    "longDescription": "Turn what you just shipped into a customer-facing changelog entry on updates.page. Reads your commits or a diff, writes the entry for a reader rather than a contributor, and leaves it as a draft for you to approve before it reaches your public page, your RSS feed and your embedded widget.",
+    "developerName": "updates.page",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://updates.page",
+    "privacyPolicyURL": "https://updates.page/privacy",
+    "termsOfServiceURL": "https://updates.page/terms",
+    "defaultPrompt": [
+      "Draft a changelog entry for what I just shipped.",
+      "Turn the commits since my last tag into release notes.",
+      "Announce this release on our changelog."
+    ]
+  }
 }

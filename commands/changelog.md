@@ -13,9 +13,20 @@ If that is empty, work out what shipped from the repository — the commits
 since the last tag are the usual answer:
 
 ```bash
-git describe --tags --abbrev=0 2>/dev/null
-git log --oneline "$(git describe --tags --abbrev=0)"..HEAD
+last_tag=$(git describe --tags --abbrev=0 2>/dev/null)
+if [ -n "$last_tag" ]; then
+  git log --oneline "$last_tag"..HEAD
+else
+  git log --oneline -30
+fi
 ```
+
+The fallback is not optional. In a repo with no tags — a new project, or a
+shallow CI clone fetched without them — `git describe` exits 128 and prints
+nothing, so `"$(...)"..HEAD` collapses to `..HEAD`, which git reads as
+`HEAD..HEAD`. That is an empty range and a **zero exit code**: the log looks
+like it ran and found no commits. Concluding "nothing shipped" there is wrong
+and silent.
 
 Then follow the `updates-page` skill, which is the authority on the CLI, the
 draft-first rule and the content format. In short:

@@ -67,12 +67,36 @@ non-conforming.** Client-specific data belongs under `extensions`.
 `$schema` must be the canonical
 `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`.
 
-### `plugin.json` and `.codex-plugin/plugin.json` must stay byte-identical
+### The two Codex-adjacent manifests are different schemas, not copies
 
-They are the same manifest at two locations because the portable spec says
-clients check the plugin root and Codex CLI reads its own directory. A change
-to one and not the other means two clients disagree about what this plugin is.
-If a PR edits one, it must edit both.
+`plugin.json` (root) is **Agent Plugins 1.0** — the portable spec, closed
+schema, `$schema` required.
+
+`.codex-plugin/plugin.json` is **Codex CLI's native manifest** — a different
+shape that requires an `interface` object (`displayName`, `category`,
+`capabilities`) and whose validator *"rejects unsupported manifest fields"*,
+`$schema` among them. Shipping the portable manifest here fails native
+ingestion outright.
+
+So they cannot be byte-identical, and an earlier version of this file wrongly
+said they must be. What has to stay in sync is the **shared facts** — name,
+version, description, author, homepage, repository, license, keywords. A PR
+that changes any of those in one manifest and not the other is a bug; a PR that
+makes their *shapes* converge is a regression.
+
+Other things the Codex validator enforces, each silent if you get it wrong:
+
+- `version` must be strict semver.
+- `websiteURL`, `privacyPolicyURL` and `termsOfServiceURL` must be absolute
+  `https://` URLs **when present** — so only include ones that actually resolve.
+- `composerIcon`, `logo`, `logoDark` and `screenshots` must point at real files
+  in the plugin. Do not add them speculatively.
+- `defaultPrompt` takes at most 3 strings, each capped at 128 characters;
+  entries past the third are dropped silently.
+- `hooks` is rejected. `apps` belongs there only if `.app.json` exists.
+
+Spec: `codex-rs/skills/src/assets/samples/plugin-creator/references/plugin-json-spec.md`
+in `openai/codex`.
 
 ### The plugin name is immutable
 
