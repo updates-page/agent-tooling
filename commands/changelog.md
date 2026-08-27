@@ -13,6 +13,11 @@ If that is empty, work out what shipped from the repository — the commits
 since the last tag are the usual answer:
 
 ```bash
+# A shallow clone can hide both the tag and the commits. Deepen before asking.
+if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+  git fetch --unshallow --tags 2>/dev/null || git fetch --deepen=200 --tags
+fi
+
 last_tag=$(git describe --tags --abbrev=0 2>/dev/null)
 if [ -n "$last_tag" ]; then
   git log --oneline "$last_tag"..HEAD
@@ -33,6 +38,13 @@ commit is by definition "since the last tag", so a cap would drop the earliest
 work with nothing to show that it had. If the history is genuinely too long to
 read, say so and ask for a range — do not summarise the tail you happened to
 get.
+
+The shallow check comes first because a partial clone fails the same way while
+looking healthy. `actions/checkout` fetches depth-1 without tags by default, so
+in CI `git describe` finds no tag *and* `git log` shows a single commit — a
+complete-looking answer to the wrong question. If the repository is still
+shallow after that fetch (no network, or a runner that refuses it), say the
+history is incomplete rather than writing an entry from the fragment.
 
 Then follow the `updates-page` skill, which is the authority on the CLI, the
 draft-first rule and the content format. In short:

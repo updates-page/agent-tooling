@@ -64,9 +64,14 @@ changelog page, the RSS feed every subscriber reads, and the widget embedded in
 their product. `updates unpublish` reverts the post, but everyone who already
 saw it has seen it. There is no unsend.
 
-Publish directly when the instruction is unambiguous about going live now:
-"publish the 2.1 release notes", "ship the changelog for this PR", "announce
-this now".
+Publish directly only when **both** are true: the instruction is unambiguous
+about going live now — "publish the 2.1 release notes", "announce this now" —
+**and** the user has already read the text that is going out.
+
+**Where the two conflict, drafting wins.** "Ship the changelog for this PR" is
+unambiguous about publishing and still gets a draft, because you wrote the
+entry from a diff the user has not seen. Being told to publish is permission
+to publish *their* words, not confirmation of words you just invented.
 
 Draft when any of these are true, which covers most requests:
 
@@ -98,6 +103,23 @@ page.
 
 Use `<p>`, `<ul>`/`<li>`, `<strong>`, `<em>`, `<a href>`, `<code>`, `<h2>`.
 Plain text works too and renders as an unstyled paragraph.
+
+**Never interpolate post text straight into a double-quoted argument.** You are
+writing release notes, so the body will contain inline code — and inside double
+quotes the shell expands backticks, `$VAR` and `$(...)` before `updates` ever
+sees them:
+
+```bash
+# WRONG — this runs `id` and publishes its output
+updates draft --content "<p>Run `id` to check</p>"
+```
+
+That matters most for text taken from a commit message, a PR description or a
+diff, which you did not write and must not execute. A quoted heredoc
+(`<<'HTML'`, delimiter in single quotes) expands nothing, and `"$content"`
+passes the result as a single argument — which is why the recipe below is
+written that way. Use it for `--title` and `--summary` too whenever the text is
+not a literal you typed yourself.
 
 For anything longer than a sentence, write the HTML to a file and pass it in —
 this avoids fighting shell quoting with nested quotes and newlines:
@@ -131,11 +153,32 @@ updates draft --title "Dark mode" --content "$(cat /tmp/entry.html)"
 | `updates doctor` | Show the resolved setup and where each value came from |
 
 `draft`, `publish` and `update` share these fields: `--title`, `--content`,
-`--summary`, `--category-id`, `--url` (link the entry to an external page
-instead), `--private`/`--public`, `--cover-image <path>`.
+`--summary`, `--category-id`, `--url`, `--private`/`--public`,
+`--cover-image <path>`.
+
+`--url` points the entry at an external page — a blog post, a GitHub release —
+instead of opening the post itself. It does **not** stand in for the body:
+`--title` and `--content` are required when creating a post whether or not you
+pass it, and omitting them exits `2`. Write the entry as normal and add `--url`
+on top.
 
 Run `updates <command> --help` for the exact current flags rather than assuming
 this table is exhaustive — it is a summary, and the CLI is the authority.
+
+## Categories belong to one account
+
+Read the id out of the listing rather than hard-coding one — an id that works
+in your test account is a `422` in the user's, which reaches you as exit code
+`7`:
+
+```bash
+updates categories --json
+# {"ok":true,"categories":[{"id":4,"name":"New"}]}
+```
+
+`--category-id` is optional: omit it and the post is filed under the account's
+first category. If you do pass one, pick the category that actually fits the
+entry — the first in the list is an example, not a default.
 
 ## Scheduling
 
@@ -193,6 +236,15 @@ One failure mode is worth naming because a retry makes it worse: if
 carries its id. Retry against that id — `updates update <id>
 --cover-image <path>` — rather than re-running the create, which produces a
 second post.
+
+## Two things that surprise people
+
+- **Post ids are hashids, not integers.** Round-trip them as strings; do not
+  parse one into a number and hand it back.
+- **Tokens are not scoped.** Every token carries its approver's full API
+  access. A key marked `machine` is the exception — it is restricted to posts,
+  categories, uploads and imports, which is the right shape for CI or an
+  unattended agent. Ask for one of those if a human is choosing on your behalf.
 
 ## Writing the entry
 
