@@ -101,25 +101,73 @@ for (const cmd of commands) {
 }
 if (perCommand.size === commands.length) ok(`all ${commands.length} documented commands exist`);
 
-// Every long flag the skill names must exist somewhere in the CLI's help.
+// Every documented flag must exist on the command the skill uses it with.
 //
-// Scoped to lines that are about `updates`. The skill also shows `git log
-// --oneline` and `jq -r`, and those flags belong to other tools — counting
-// them would fail this check for a reason that has nothing to do with drift.
+// A single combined haystack was not enough: a flag dropped from `draft` but
+// still present on `upload` would pass, while the skill's own recipe had gone
+// stale. Attribution comes from the document — a code line's flags belong to
+// the command it invokes, and a prose paragraph's flags belong to whichever
+// commands that paragraph names.
 const OTHER_TOOLS = /\b(git|jq|npm|npx|cat|curl|echo|tar)\b/;
-const flagLines = source
-  .split('\n')
-  .filter((line) => /(?<![\w-])--[a-z]/.test(line))
-  .filter((line) => /\bupdates\b/.test(line) || !OTHER_TOOLS.test(line));
-const flags = [...new Set(
-  [...flagLines.join('\n').matchAll(/(?<![\w-])(--[a-z][a-z-]+)/g)].map((m) => m[1]),
-)];
-const haystack = globalHelp + [...perCommand.values()].join('\n');
-const missing = flags.filter((f) => !new RegExp(`${f}(?![a-z-])`).test(haystack));
-if (missing.length) {
-  fail(`SKILL.md documents flags the CLI no longer has: ${missing.join(', ')}`);
+const flagsIn = (text) =>
+  [...new Set([...text.matchAll(/(?<![\w-])(--[a-z][a-z-]+)/g)].map((m) => m[1]))];
+
+/** flag -> Set of commands it is documented against ('' = global/unattributed) */
+const attributed = new Map();
+const attribute = (flag, cmd) => {
+  if (!attributed.has(flag)) attributed.set(flag, new Set());
+  attributed.get(flag).add(cmd);
+};
+
+// Code lines: `updates <cmd> … --flag` attributes to that command.
+const codeInvocations = [...source.matchAll(/^\s*(?:\w+=\$\()?updates\s+([a-z][a-z-]*)([^\n]*)$/gm)];
+for (const [, cmd, rest] of codeInvocations) {
+  if (!listed.has(cmd)) continue;
+  for (const f of flagsIn(rest)) attribute(f, cmd);
+}
+
+// Prose: each markdown table ROW is its own scope, not the whole table. The
+// commands table names every command and `--status` in one block, so treating
+// it as a paragraph attributed --status to all thirteen.
+const units = [];
+for (const para of source.split(/\n\s*\n/)) {
+  const rows = para.split('\n').filter((l) => l.trim().startsWith('|'));
+  if (rows.length) units.push(...rows);
+  else units.push(para);
+}
+for (const para of units) {
+  if (OTHER_TOOLS.test(para) && !/\bupdates\b/.test(para)) continue;
+  const flags = flagsIn(para);
+  if (!flags.length) continue;
+  const named = [...listed].filter((c) => new RegExp(`\`(?:updates )?${c}\``).test(para));
+  for (const f of flags) {
+    if (named.length) named.forEach((c) => attribute(f, c));
+    else attribute(f, '');
+  }
+}
+
+const globalFlags = new Set(flagsIn(globalHelp));
+const mismatches = [];
+for (const [flag, cmds] of attributed) {
+  if (globalFlags.has(flag)) continue;
+  for (const cmd of cmds) {
+    if (cmd === '') {
+      // Unattributed: must exist somewhere, which is the weaker old check.
+      const anywhere = [...perCommand.values()].some((h) => new RegExp(`${flag}(?![a-z-])`).test(h));
+      if (!anywhere) mismatches.push(`${flag} (documented, exists on no command)`);
+    } else {
+      const help = perCommand.get(cmd);
+      if (help && !new RegExp(`${flag}(?![a-z-])`).test(help)) {
+        mismatches.push(`\`updates ${cmd} ${flag}\` — that command has no such flag`);
+      }
+    }
+  }
+}
+if (mismatches.length) {
+  fail(`SKILL.md pairs flags with commands that do not accept them:\n` +
+    mismatches.map((m) => `         ${m}`).join('\n'));
 } else {
-  ok(`all ${flags.length} documented flags exist`);
+  ok(`all ${attributed.size} documented flags exist on the commands they are used with`);
 }
 
 // ----------------------------------------------------------------------- done
