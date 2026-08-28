@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # The CLI ships from another repo on its own schedule, so drift arrives
+    # without a commit here. Nothing else would notice until someone ran the
+    # skill and it failed.
+    - cron: '0 7 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Manifests
+        run: node script/check-manifests.mjs
+
+      # Against `latest`, not the pinned floor: `latest` is what the skill
+      # tells people to install, so that is the CLI a reader will actually get.
+      - name: Skill matches the published CLI
+        run: node script/check-skill.mjs
+
+      - name: Plugin and component validation
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude plugin validate ./ --strict
+          claude plugin validate ./.claude-plugin/plugin.json --strict
+          claude plugin validate ./skills --strict
+          claude plugin validate ./commands --strict

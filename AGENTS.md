@@ -27,11 +27,20 @@ separate repo because Marketplace requires `action.yml` alone at a repo root),
 ## Before you commit
 
 ```bash
+node script/check-manifests.mjs   # the three manifests agree on the facts
+node script/check-skill.mjs       # SKILL.md still matches the published CLI
 claude plugin validate ./ --strict
 claude plugin validate ./.claude-plugin/plugin.json --strict
 claude plugin validate ./skills --strict
 claude plugin validate ./commands --strict
 ```
+
+CI runs all of these, plus `check-skill.mjs` on a weekly schedule — the CLI
+ships from another repo, so drift arrives without a commit here and nothing
+else would notice until somebody ran the skill and it failed.
+
+`check-skill.mjs` takes a version argument (`node script/check-skill.mjs 1.4.1`)
+if you need to test against something other than the published `latest`.
 
 All four must pass. `passed with warnings` is not good enough here — the same
 check runs in Anthropic's review pipeline, and `--strict` is what catches an
