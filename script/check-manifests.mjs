@@ -5,7 +5,7 @@
  * both halves, because a drifted version or a `$schema` in the Codex manifest
  * are each invisible until an install fails somewhere nobody is looking.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 
 const failures = [];
 const fail = (m) => failures.push(m);
@@ -75,6 +75,33 @@ for (const key of ['websiteURL', 'privacyPolicyURL', 'termsOfServiceURL']) {
     fail(`.codex-plugin/plugin.json interface.${key} is not a valid absolute https URL: ${JSON.stringify(v)}`);
   }
 }
+// Asset paths must point at files that exist. The spec requires it, nothing
+// else in CI reads this manifest, and a logo naming a file nobody added is
+// exactly the kind of thing that looks fine in a diff.
+for (const key of ['composerIcon', 'logo', 'logoDark']) {
+  const v = codex.interface?.[key];
+  if (v === undefined) continue;
+  if (!v.startsWith('./')) fail(`.codex-plugin/plugin.json interface.${key} must be a relative path beginning "./"`);
+  else if (!existsSync(v.slice(2))) fail(`.codex-plugin/plugin.json interface.${key} points at a file that does not exist: ${v}`);
+}
+for (const shot of codex.interface?.screenshots ?? []) {
+  if (!shot.startsWith('./assets/') || !shot.endsWith('.png')) {
+    fail(`.codex-plugin/plugin.json screenshot must be a PNG under ./assets/: ${shot}`);
+  } else if (!existsSync(shot.slice(2))) {
+    fail(`.codex-plugin/plugin.json screenshot does not exist: ${shot}`);
+  }
+}
+// `apps` belongs in the manifest only when .app.json actually exists.
+if ('apps' in codex && !existsSync(String(codex.apps).replace(/^\.\//, ''))) {
+  fail(`.codex-plugin/plugin.json declares apps: ${codex.apps}, which does not exist`);
+}
+for (const key of ['skills', 'mcpServers']) {
+  const v = codex[key];
+  if (typeof v === 'string' && !existsSync(v.replace(/^\.\//, ''))) {
+    fail(`.codex-plugin/plugin.json ${key} points at a missing path: ${v}`);
+  }
+}
+
 const prompts = codex.interface?.defaultPrompt ?? [];
 if (prompts.length > 3) fail('.codex-plugin/plugin.json defaultPrompt has more than 3 entries; the rest are dropped silently');
 if (prompts.some((p) => p.length > 128)) fail('.codex-plugin/plugin.json has a defaultPrompt entry over 128 chars');

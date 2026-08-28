@@ -18,6 +18,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 
 const SKILL = 'skills/updates-page/SKILL.md';
 const FRONTMATTER_FIELDS = new Set([
@@ -32,12 +33,27 @@ const ok = (msg) => console.log(`  ok   ${msg}`);
 const source = readFileSync(SKILL, 'utf8');
 
 // ---------------------------------------------------------------- frontmatter
+// Parsed as YAML, not pattern-matched: `"version": 1.2.3` is a valid seventh
+// field that a regex for unquoted keys never sees, and Skills consumers reject
+// the file for it while every local check stays green.
+execFileSync('npm', ['install', '--no-save', '--silent', 'js-yaml@4'], { stdio: 'inherit' });
+const yaml = createRequire(import.meta.url)('js-yaml');
+
 const fm = source.match(/^---\n([\s\S]*?)\n---\n/);
 if (!fm) {
   fail(`${SKILL}: no frontmatter block`);
 } else {
-  // Top-level keys only: a line starting at column 0 with `key:`.
-  const keys = [...fm[1].matchAll(/^([A-Za-z][\w-]*):/gm)].map((m) => m[1]);
+  let parsed = null;
+  try {
+    parsed = yaml.load(fm[1]);
+  } catch (e) {
+    fail(`frontmatter is not valid YAML: ${e.message.split('\n')[0]}`);
+  }
+  if (parsed !== null && (typeof parsed !== 'object' || Array.isArray(parsed))) {
+    fail('frontmatter is not a mapping');
+    parsed = null;
+  }
+  const keys = parsed ? Object.keys(parsed) : [];
   const extra = keys.filter((k) => !FRONTMATTER_FIELDS.has(k));
   if (extra.length) {
     fail(`frontmatter has fields outside the permitted six: ${extra.join(', ')}\n` +
@@ -46,8 +62,7 @@ if (!fm) {
     ok(`frontmatter fields (${keys.join(', ')})`);
   }
 
-  const desc = fm[1].match(/^description:\s*([\s\S]*?)(?=\n[A-Za-z][\w-]*:|$)/m)?.[1] ?? '';
-  const flat = desc.replace(/\s+/g, ' ').trim();
+  const flat = String(parsed?.description ?? '').replace(/\s+/g, ' ').trim();
   if (!flat) fail('frontmatter: description is empty');
   else if (flat.length > DESCRIPTION_MAX) fail(`description is ${flat.length} chars, max ${DESCRIPTION_MAX}`);
   else ok(`description length ${flat.length}/${DESCRIPTION_MAX}`);
@@ -71,10 +86,18 @@ const help = (args) => {
   }
 };
 
-// Subcommands the skill names, e.g. `updates draft`. Skip the bare binary.
-const commands = [...new Set(
-  [...source.matchAll(/`updates ([a-z][a-z-]*)/g)].map((m) => m[1]),
-)].filter((c) => !['<command>', 'login'].includes(c) || c === 'login');
+// Subcommands the skill names, e.g. `updates draft`.
+const explicit = [...new Set([...source.matchAll(/`updates ([a-z][a-z-]*)/g)].map((m) => m[1]))];
+
+// Plus the shorthand run-on the commands table uses — `updates whoami` /
+// `login` / `logout` — where only the first carries the prefix. Reading just
+// the prefixed form meant a removed `logout` was invisible.
+const tableShorthand = new Set();
+for (const row of source.split('\n').filter((l) => /^\|\s*`updates /.test(l))) {
+  const cell = row.split('|')[1] ?? '';
+  for (const m of cell.matchAll(/`(?:updates )?([a-z][a-z-]*)[^`]*`/g)) tableShorthand.add(m[1]);
+}
+const commands = [...new Set([...explicit, ...tableShorthand])];
 
 const globalHelp = help([]) ?? '';
 
@@ -97,7 +120,10 @@ for (const cmd of commands) {
     continue;
   }
   const out = help([cmd]);
-  if (out) perCommand.set(cmd, out);
+  // Unreadable help is a failure, not something to drop quietly: skipping it
+  // silently disables every flag check that depends on that command.
+  if (out === null) fail(`\`updates ${cmd} --help\` could not be read; its flags went unchecked`);
+  else perCommand.set(cmd, out);
 }
 if (perCommand.size === commands.length) ok(`all ${commands.length} documented commands exist`);
 
